@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>🌴 تصنيف التمر: عجوة أم مجدول؟</title>
+
+  <!-- تحميل مكتبات TensorFlow.js و Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.3.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 {
+      color: #4a2c2a;
+    }
+    #preview {
+      width: 250px;
+      height: 250px;
+      object-fit: cover;
+      margin-top: 15px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #6d4c41;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #5d4037;
+    }
+    #result {
+      font-size: 22px;
+      margin-top: 20px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🌴 هل هذه عجوة أم مجدول؟</h1>
+
+  <input type="file" accept="image/*" onchange="handleImageUpload(event)" class="btn">
+  <button onclick="initCamera()" class="btn">📷 استخدام الكاميرا</button>
+  <br>
+  <img id="preview" src="" alt="صورة التمر">
+  <div id="result">🔎 في انتظار الصورة...</div>
+
+  <script>
+    const URL = "./model/";
+    let model, webcam, labelContainer, maxPredictions;
+
+    async function loadModel() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+    }
+
+    async function predict(imgElement) {
+      if (!model) {
+        await loadModel();
+      }
+      const prediction = await model.predict(imgElement);
+      let top = prediction[0];
+      for (let p of prediction) {
+        if (p.probability > top.probability) top = p;
+      }
+
+      let emoji = top.className === "عجوة" ? "🥇" :
+                  top.className === "مجدول" ? "🏆" : "❓";
+      document.getElementById("result").innerText = `${emoji} النوع: ${top.className} (${(top.probability * 100).toFixed(2)}%)`;
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = document.getElementById('preview');
+        img.src = e.target.result;
+        img.onload = () => predict(img);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function initCamera() {
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.width = 250;
+      video.height = 250;
+      document.getElementById("preview").replaceWith(video);
+
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          video.srcObject = stream;
+          loadModel().then(() => {
+            setInterval(() => {
+              predict(video);
+            }, 2000);
+          });
+        })
+        .catch((err) => {
+          alert("📵 لا يمكن الوصول إلى الكاميرا");
+        });
+    }
+  </script>
+
+</body>
+</html>
